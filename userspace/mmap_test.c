@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #define NPAGES 16
+#define NODE_PATH "dev/mmap"
 
 /* this is a test program that opens the mmap_drv.
    It reads out values of the kmalloc() and vmalloc()
@@ -31,7 +32,7 @@ int main(void)
 
         int len = NPAGES * getpagesize();
 
-        if ((fd=open("node", O_RDWR|O_SYNC)) < 0)
+        if ((fd=open(NODE_PATH, O_RDWR|O_SYNC)) < 0)
         {
                 perror("open");
                 exit(-1);
