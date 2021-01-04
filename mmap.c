@@ -110,6 +110,10 @@ int mmap_vmem(struct file *filp, struct vm_area_struct *vma)
                 vmalloc_area_ptr += PAGE_SIZE;
                 length -= PAGE_SIZE;
         }
+
+//        if (*(int *)0x100)
+//                return 1;
+
         return 0;
 }
 
