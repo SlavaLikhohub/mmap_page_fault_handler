@@ -1,20 +1,16 @@
-//#include <linux/config.h>
-#include <linux/version.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/fs.h>
 #include <linux/cdev.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/miscdevice.h>
 #include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/version.h>
+#include <linux/vmalloc.h>
 #ifdef MODVERSIONS
 #  include <linux/modversions.h>
 #endif
 #include <asm/io.h>
-
-/* character device structures */
-static dev_t mmap_dev;
-static struct cdev mmap_cdev;
 
 /* methods of the character device */
 static int mmap_open(struct inode *inode, struct file *filp);
@@ -31,6 +27,12 @@ static struct file_operations mmap_fops = {
         .release = mmap_release,
         .mmap = mmap_mmap,
         .owner = THIS_MODULE,
+};
+
+static struct miscdevice mmap_misc = {
+        .minor = MISC_DYNAMIC_MINOR,
+        .name = "mmap",
+        .fops = &mmap_fops,
 };
 
 static struct vm_operations_struct vm_ops =
@@ -168,17 +170,10 @@ static int __init mymmap_init(void)
                 goto out_kfree;
         }
 
-        /* get the major number of the character device */
-        if ((ret = alloc_chrdev_region(&mmap_dev, 0, 1, "mmap")) < 0) {
-                printk(KERN_ERR "could not allocate major number for mmap\n");
+        ret = misc_register(&mmap_misc);
+        if (ret) {
+                pr_err("can't misc_register\n");
                 goto out_vfree;
-        }
-
-        /* initialize the device structure and register the device with the kernel */
-        cdev_init(&mmap_cdev, &mmap_fops);
-        if ((ret = cdev_add(&mmap_cdev, mmap_dev, 1)) < 0) {
-                printk(KERN_ERR "could not allocate chrdev for mmap\n");
-                goto out_unalloc_region;
         }
 
         /* mark the pages reserved */
@@ -197,8 +192,6 @@ static int __init mymmap_init(void)
 
         return ret;
 
-  out_unalloc_region:
-        unregister_chrdev_region(mmap_dev, 1);
   out_vfree:
         vfree(vmalloc_area);
   out_kfree:
@@ -213,8 +206,7 @@ static void __exit mmap_exit(void)
         int i;
 
         /* remove the character deivce */
-        cdev_del(&mmap_cdev);
-        unregister_chrdev_region(mmap_dev, 1);
+        misc_deregister(&mmap_misc);
 
         /* unreserve the pages */
         for (i = 0; i < NPAGES * PAGE_SIZE; i+= PAGE_SIZE) {
