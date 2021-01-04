@@ -1,4 +1,4 @@
-TARGET := tasklets_test
+TARGET := mmap
 INSTALL_PATH := /srv/nfs/busybox/test_modules
 
 ifneq ($(KERNELRELEASE),)

@@ -25,50 +25,50 @@
 
 int main(void)
 {
-  int fd;
-  unsigned int *vadr;
-  unsigned int *kadr;
+        int fd;
+        unsigned int *vadr;
+        unsigned int *kadr;
 
-  int len = NPAGES * getpagesize();
+        int len = NPAGES * getpagesize();
 
-  if ((fd=open("node", O_RDWR|O_SYNC))<0)
-  {
-      perror("open");
-      exit(-1);
-  }
+        if ((fd=open("node", O_RDWR|O_SYNC)) < 0)
+        {
+                perror("open");
+                exit(-1);
+        }
 
-  vadr = mmap(0, len, PROT_READ, MAP_SHARED, fd, 0);
-  
-  if (vadr == MAP_FAILED)
-  {
-          perror("mmap");
-          exit(-1);
-  }
-  if ((vadr[0]!=0xaffe0000) || (vadr[1]!=0xbeef0000)
-      || (vadr[len/sizeof(int)-2]!=(0xaffe0000+len/sizeof(int)-2))
-      || (vadr[len/sizeof(int)-1]!=(0xbeef0000+len/sizeof(int)-2)))
-  {
-       printf("0x%x 0x%x\n", vadr[0], vadr[1]);
-       printf("0x%x 0x%x\n", vadr[len/sizeof(int)-2], vadr[len/sizeof(int)-1]);
-  }
-  
-  kadr = mmap(0, len, PROT_READ|PROT_WRITE, MAP_SHARED| MAP_LOCKED, fd, len);
-  
-  if (kadr == MAP_FAILED)
-  {
-          perror("mmap");
-          exit(-1);
-  }
+        vadr = mmap(0, len, PROT_READ, MAP_SHARED, fd, 0);
 
-  if ((kadr[0]!=0xdead0000) || (kadr[1]!=0xbeef0000)
-      || (kadr[len / sizeof(int) - 2] != (0xdead0000 + len / sizeof(int) - 2))
-      || (kadr[len / sizeof(int) - 1] != (0xbeef0000 + len / sizeof(int) - 2)))
-  {
-      printf("0x%x 0x%x\n", kadr[0], kadr[1]);
-      printf("0x%x 0x%x\n", kadr[len / sizeof(int) - 2], kadr[len / sizeof(int) - 1]);
-  }
-  
-  close(fd);
-  return(0);
+        if (vadr == MAP_FAILED)
+        {
+                perror("mmap");
+                exit(-1);
+        }
+        if ((vadr[0]!=0xaffe0000) || (vadr[1]!=0xbeef0000)
+            || (vadr[len/sizeof(int)-2]!=(0xaffe0000+len/sizeof(int)-2))
+            || (vadr[len/sizeof(int)-1]!=(0xbeef0000+len/sizeof(int)-2)))
+        {
+                printf("0x%x 0x%x\n", vadr[0], vadr[1]);
+                printf("0x%x 0x%x\n", vadr[len/sizeof(int)-2], vadr[len/sizeof(int)-1]);
+        }
+
+        kadr = mmap(0, len, PROT_READ|PROT_WRITE, MAP_SHARED| MAP_LOCKED, fd, len);
+
+        if (kadr == MAP_FAILED)
+        {
+                perror("mmap");
+                exit(-1);
+        }
+
+        if ((kadr[0]!=0xdead0000) || (kadr[1]!=0xbeef0000)
+            || (kadr[len / sizeof(int) - 2] != (0xdead0000 + len / sizeof(int) - 2))
+            || (kadr[len / sizeof(int) - 1] != (0xbeef0000 + len / sizeof(int) - 2)))
+        {
+                printf("0x%x 0x%x\n", kadr[0], kadr[1]);
+                printf("0x%x 0x%x\n", kadr[len / sizeof(int) - 2], kadr[len / sizeof(int) - 1]);
+        }
+
+        close(fd);
+        return(0);
 }
 

@@ -21,12 +21,23 @@ static int mmap_open(struct inode *inode, struct file *filp);
 static int mmap_release(struct inode *inode, struct file *filp);
 static int mmap_mmap(struct file *filp, struct vm_area_struct *vma);
 
+static void vm_open(struct vm_area_struct *vma);
+static void vm_close(struct vm_area_struct *vma);
+static int vm_fault(struct vm_fault *vmf);
+
 /* the file operations, i.e. all character device methods */
 static struct file_operations mmap_fops = {
         .open = mmap_open,
         .release = mmap_release,
         .mmap = mmap_mmap,
         .owner = THIS_MODULE,
+};
+
+static struct vm_operations_struct vm_ops =
+{
+	.close = vm_close,
+	.fault = vm_fault,
+	.open = vm_open,
 };
 
 // internal data
@@ -69,7 +80,7 @@ int mmap_kmem(struct file *filp, struct vm_area_struct *vma)
                                    vma->vm_page_prot)) < 0) {
                 return ret;
         }
-        
+
         return 0;
 }
 // helper function, mmap's the vmalloc'd area which is not physically contiguous
@@ -100,9 +111,31 @@ int mmap_vmem(struct file *filp, struct vm_area_struct *vma)
         return 0;
 }
 
+static void vm_open(struct vm_area_struct *vma)
+{
+	pr_info("vm_open\n");
+}
+
+static void vm_close(struct vm_area_struct *vma)
+{
+	pr_info("vm_close\n");
+}
+
+int (*fault)(struct vm_fault *vmf);
+static int vm_fault(struct vm_fault *vmf)
+{
+        pr_info("vm_fault\n");
+        return 0;
+}
+
 /* character device mmap method */
 static int mmap_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+        vma->vm_ops = &vm_ops;
+        vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+        vma->vm_private_data = filp->private_data;
+        vm_open(vma);
+
         /* at offset 0 we map the vmalloc'd area */
         if (vma->vm_pgoff == 0) {
                 return mmap_vmem(filp, vma);
@@ -161,9 +194,9 @@ static int __init mymmap_init(void)
                 kmalloc_area[i] = (0xdead << 16) + i;
                 kmalloc_area[i + 1] = (0xbeef << 16) + i;
         }
-        
+
         return ret;
-        
+
   out_unalloc_region:
         unregister_chrdev_region(mmap_dev, 1);
   out_vfree:
