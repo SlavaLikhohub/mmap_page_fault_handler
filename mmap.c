@@ -210,8 +210,8 @@ static void __exit mmap_exit(void)
 
         /* unreserve the pages */
         for (i = 0; i < NPAGES * PAGE_SIZE; i+= PAGE_SIZE) {
-                SetPageReserved(vmalloc_to_page((void *)(((unsigned long)vmalloc_area) + i)));
-                SetPageReserved(virt_to_page(((unsigned long)kmalloc_area) + i));
+                ClearPageReserved(vmalloc_to_page((void *)(((unsigned long)vmalloc_area) + i)));
+                ClearPageReserved(virt_to_page(((unsigned long)kmalloc_area) + i));
         }
         /* free the memory areas */
         vfree(vmalloc_area);
@@ -223,4 +223,3 @@ module_exit(mmap_exit);
 MODULE_DESCRIPTION("mmap demo driver");
 MODULE_AUTHOR("Martin Frey <frey@scs.ch>");
 MODULE_LICENSE("Dual BSD/GPL");
-
