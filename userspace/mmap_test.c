@@ -45,9 +45,10 @@ int main(void)
                 perror("mmap");
                 exit(-1);
         }
-        if ((vadr[0]!=0xaffe0000) || (vadr[1]!=0xbeef0000)
-            || (vadr[len/sizeof(int)-2]!=(0xaffe0000+len/sizeof(int)-2))
-            || (vadr[len/sizeof(int)-1]!=(0xbeef0000+len/sizeof(int)-2)))
+
+        if ((vadr[0] != 0xaffe0000) || (vadr[1] != 0xbeef0000)
+            || (vadr[len/sizeof(int) - 2] != (0xaffe0000 + len/sizeof(int) - 2))
+            || (vadr[len/sizeof(int) - 1] != (0xbeef0000 + len/sizeof(int) - 2)))
         {
                 printf("0x%x 0x%x\n", vadr[0], vadr[1]);
                 printf("0x%x 0x%x\n", vadr[len/sizeof(int)-2], vadr[len/sizeof(int)-1]);
@@ -61,7 +62,7 @@ int main(void)
                 exit(-1);
         }
 
-        if ((kadr[0]!=0xdead0000) || (kadr[1]!=0xbeef0000)
+        if ((kadr[0] != 0xdead0000) || (kadr[1] != 0xbeef0000)
             || (kadr[len / sizeof(int) - 2] != (0xdead0000 + len / sizeof(int) - 2))
             || (kadr[len / sizeof(int) - 1] != (0xbeef0000 + len / sizeof(int) - 2)))
         {

@@ -8,7 +8,7 @@
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 #ifdef MODVERSIONS
-#  include <linux/modversions.h>
+#include <linux/modversions.h>
 #endif
 #include <asm/io.h>
 
