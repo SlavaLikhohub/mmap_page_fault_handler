@@ -12,6 +12,8 @@
 #endif
 #include <asm/io.h>
 
+#define FAULT
+
 /* methods of the character device */
 static int mmap_open(struct inode *inode, struct file *filp);
 static int mmap_release(struct inode *inode, struct file *filp);
@@ -19,7 +21,8 @@ static int mmap_mmap(struct file *filp, struct vm_area_struct *vma);
 
 static void vm_open(struct vm_area_struct *vma);
 static void vm_close(struct vm_area_struct *vma);
-static int vm_fault(struct vm_fault *vmf);
+static vm_fault_t vm_fault(struct vm_fault *vmf);
+static vm_fault_t vm_huge_fault(struct vm_fault *vmf, enum page_entry_size pe_size);
 
 /* the file operations, i.e. all character device methods */
 static struct file_operations mmap_fops = {
@@ -37,9 +40,10 @@ static struct miscdevice mmap_misc = {
 
 static struct vm_operations_struct vm_ops =
 {
+	.open = vm_open,
 	.close = vm_close,
 	.fault = vm_fault,
-	.open = vm_open,
+	.huge_fault = vm_huge_fault,
 };
 
 // internal data
@@ -133,7 +137,13 @@ static void vm_close(struct vm_area_struct *vma)
         pr_info("++%s\n", __func__);
 }
 
-static int vm_fault(struct vm_fault *vmf)
+static vm_fault_t vm_fault(struct vm_fault *vmf)
+{
+        pr_info("++%s\n", __func__);
+        return 0;
+}
+
+static vm_fault_t vm_huge_fault(struct vm_fault *vmf, enum page_entry_size pe_size)
 {
         pr_info("++%s\n", __func__);
         return 0;
@@ -142,6 +152,8 @@ static int vm_fault(struct vm_fault *vmf)
 /* character device mmap method */
 static int mmap_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+        pr_info("++%s\n", __func__);
+
         vma->vm_ops = &vm_ops;
         vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
         vma->vm_private_data = filp->private_data;
@@ -201,11 +213,19 @@ static int __init mymmap_init(void)
                 kmalloc_area[i + 1] = (0xbeef << 16) + i;
         }
 
+#ifndef FAULT
         return ret;
+#endif
 
   out_vfree:
+        for (i = 0; i < NPAGES * PAGE_SIZE; i+= PAGE_SIZE) {
+                ClearPageReserved(vmalloc_to_page((void *)(((unsigned long)vmalloc_area) + i)));
+        }
         vfree(vmalloc_area);
   out_kfree:
+        for (i = 0; i < NPAGES * PAGE_SIZE; i+= PAGE_SIZE) {
+                ClearPageReserved(virt_to_page(((unsigned long)kmalloc_area) + i));
+        }
         kfree(kmalloc_ptr);
   out:
         return ret;
@@ -221,6 +241,7 @@ static void __exit mmap_exit(void)
         /* remove the character deivce */
         misc_deregister(&mmap_misc);
 
+#ifndef FAULT
         /* unreserve the pages */
         for (i = 0; i < NPAGES * PAGE_SIZE; i+= PAGE_SIZE) {
                 ClearPageReserved(vmalloc_to_page((void *)(((unsigned long)vmalloc_area) + i)));
@@ -229,6 +250,7 @@ static void __exit mmap_exit(void)
         /* free the memory areas */
         vfree(vmalloc_area);
         kfree(kmalloc_ptr);
+#endif
 }
 
 module_init(mymmap_init);
