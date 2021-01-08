@@ -55,11 +55,13 @@ static void *kmalloc_ptr;
 /* character device open method */
 static int mmap_open(struct inode *inode, struct file *filp)
 {
+        pr_info("++%s\n", __func__);
         return 0;
 }
 /* character device last close method */
 static int mmap_release(struct inode *inode, struct file *filp)
 {
+        pr_info("++%s\n", __func__);
         return 0;
 }
 
@@ -68,6 +70,8 @@ int mmap_kmem(struct file *filp, struct vm_area_struct *vma)
 {
         int ret;
         long length = vma->vm_end - vma->vm_start;
+
+        pr_info("++%s\n", __func__);
 
         /* check length - do not allow larger mappings than the number of
            pages allocated */
@@ -94,6 +98,8 @@ int mmap_vmem(struct file *filp, struct vm_area_struct *vma)
         char *vmalloc_area_ptr = (char *)vmalloc_area;
         unsigned long pfn;
 
+        pr_info("++%s\n", __func__);
+
         /* check length - do not allow larger mappings than the number of
            pages allocated */
         if (length > NPAGES * PAGE_SIZE)
@@ -119,18 +125,17 @@ int mmap_vmem(struct file *filp, struct vm_area_struct *vma)
 
 static void vm_open(struct vm_area_struct *vma)
 {
-	pr_info("vm_open\n");
+        pr_info("++%s\n", __func__);
 }
 
 static void vm_close(struct vm_area_struct *vma)
 {
-	pr_info("vm_close\n");
+        pr_info("++%s\n", __func__);
 }
 
-int (*fault)(struct vm_fault *vmf);
 static int vm_fault(struct vm_fault *vmf)
 {
-        pr_info("vm_fault\n");
+        pr_info("++%s\n", __func__);
         return 0;
 }
 
@@ -159,6 +164,8 @@ static int __init mymmap_init(void)
 {
         int ret = 0;
         int i;
+
+        pr_info("++%s\n", __func__);
 
         /* allocate a memory area with kmalloc. Will be rounded up to a page boundary */
         if ((kmalloc_ptr = kmalloc((NPAGES + 2) * PAGE_SIZE, GFP_KERNEL)) == NULL) {
@@ -208,6 +215,8 @@ static int __init mymmap_init(void)
 static void __exit mmap_exit(void)
 {
         int i;
+
+        pr_info("++%s\n", __func__);
 
         /* remove the character deivce */
         misc_deregister(&mmap_misc);
