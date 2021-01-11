@@ -12,7 +12,7 @@
 #endif
 #include <asm/io.h>
 
-#define FAULT
+//#define FAULT
 
 /* methods of the character device */
 static int mmap_open(struct inode *inode, struct file *filp);
@@ -49,10 +49,12 @@ static struct vm_operations_struct vm_ops =
 // internal data
 // length of the two memory areas
 #define NPAGES 16
-// pointer to the vmalloc'd area - alway page aligned
+// pointer to the vmalloc'd area - always page aligned
 static int *vmalloc_area;
+static int vmalloc_page_used = 0;
 // pointer to the kmalloc'd area, rounded up to a page boundary
 static int *kmalloc_area;
+static int kmalloc_page_used = 0;
 // original pointer for kmalloc'd area as returned by kmalloc
 static void *kmalloc_ptr;
 
@@ -69,67 +71,12 @@ static int mmap_release(struct inode *inode, struct file *filp)
         return 0;
 }
 
-// helper function, mmap's the kmalloc'd area which is physically contiguous
-int mmap_kmem(struct file *filp, struct vm_area_struct *vma)
-{
-        int ret;
-        long length = vma->vm_end - vma->vm_start;
-
-        pr_info("++%s\n", __func__);
-
-        /* check length - do not allow larger mappings than the number of
-           pages allocated */
-        if (length > NPAGES * PAGE_SIZE)
-                return -EIO;
-
-        /* map the whole physically contiguous area in one piece */
-        if ((ret = remap_pfn_range(vma,
-                                   vma->vm_start,
-                                   virt_to_phys((void *)kmalloc_area) >> PAGE_SHIFT,
-                                   length,
-                                   vma->vm_page_prot)) < 0) {
-                return ret;
-        }
-
-        return 0;
-}
-// helper function, mmap's the vmalloc'd area which is not physically contiguous
-int mmap_vmem(struct file *filp, struct vm_area_struct *vma)
-{
-        int ret;
-        long length = vma->vm_end - vma->vm_start;
-        unsigned long start = vma->vm_start;
-        char *vmalloc_area_ptr = (char *)vmalloc_area;
-        unsigned long pfn;
-
-        pr_info("++%s\n", __func__);
-
-        /* check length - do not allow larger mappings than the number of
-           pages allocated */
-        if (length > NPAGES * PAGE_SIZE)
-                return -EIO;
-
-        /* loop over all pages, map it page individually */
-        while (length > 0) {
-                pfn = vmalloc_to_pfn(vmalloc_area_ptr);
-                if ((ret = remap_pfn_range(vma, start, pfn, PAGE_SIZE,
-                                           PAGE_SHARED)) < 0) {
-                        return ret;
-                }
-                start += PAGE_SIZE;
-                vmalloc_area_ptr += PAGE_SIZE;
-                length -= PAGE_SIZE;
-        }
-
-//        if (*(int *)0x100)
-//                return 1;
-
-        return 0;
-}
-
 static void vm_open(struct vm_area_struct *vma)
 {
         pr_info("++%s\n", __func__);
+
+        vmalloc_page_used = 0;
+        kmalloc_page_used = 0;
 }
 
 static void vm_close(struct vm_area_struct *vma)
@@ -139,7 +86,33 @@ static void vm_close(struct vm_area_struct *vma)
 
 static vm_fault_t vm_fault(struct vm_fault *vmf)
 {
+        struct vm_area_struct *vma = vmf->vma;
+        struct page *page;
+
         pr_info("++%s\n", __func__);
+
+        if (vmf == NULL) {
+                pr_err("vms is NULL\n");
+                return -1;
+        }
+
+        pr_info("vma->vm_pgoff: %d\n", vma->vm_pgoff);
+
+        if (vma->vm_pgoff == 0) {
+                pr_info("vmalloc_page_used: %d\n", vmalloc_page_used);
+                page = vmalloc_to_page(vmalloc_area + PAGE_SIZE * vmalloc_page_used);
+                if (++vmalloc_page_used >= NPAGES)
+                        vmalloc_page_used = 0;
+        } else {
+                pr_info("kmalloc_page_used: %d\n", kmalloc_page_used);
+                page = virt_to_page(kmalloc_area + PAGE_SIZE * kmalloc_page_used);
+                if (++kmalloc_page_used >= NPAGES)
+                        kmalloc_page_used = 0;
+        }
+        get_page(page);
+        vmf->page = page;
+
+        pr_info("--%s\n", __func__);
         return 0;
 }
 
@@ -159,16 +132,7 @@ static int mmap_mmap(struct file *filp, struct vm_area_struct *vma)
         vma->vm_private_data = filp->private_data;
         vm_open(vma);
 
-        /* at offset 0 we map the vmalloc'd area */
-        if (vma->vm_pgoff == 0) {
-                return mmap_vmem(filp, vma);
-        }
-        /* at offset NPAGES we map the kmalloc'd area */
-        if (vma->vm_pgoff == NPAGES) {
-                return mmap_kmem(filp, vma);
-        }
-        /* at any other offset we return an error */
-        return -EIO;
+        return 0;
 }
 
 /* module initialization - called at module load time */

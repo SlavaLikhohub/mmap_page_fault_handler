@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define NPAGES 16
+#define NPAGES 8
 #define NODE_PATH "dev/mmap"
 
 /* this is a test program that opens the mmap_drv.
@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
                 exit(-1);
         }
 
+        printf("Try to mmap vadr\n");
         vadr = mmap(0, len, PROT_READ, MAP_SHARED, fd, 0);
 
         if (vadr == MAP_FAILED)
@@ -54,12 +55,7 @@ int main(int argc, char *argv[])
                 exit(-1);
         }
 
-        if (fault) {
-                printf("Invalid address data before: %d", vadr[len * 2]);
-                vadr[len * 2] = 0xDEAD;
-                printf("Invalid address data after: %d", vadr[len * 2]);
-                return -1;
-        }
+        printf("Mmaped fd\n");
 
         if ((vadr[0] != 0xaffe0000) || (vadr[1] != 0xbeef0000)
             || (vadr[len/sizeof(int) - 2] != (0xaffe0000 + len/sizeof(int) - 2))
@@ -69,13 +65,19 @@ int main(int argc, char *argv[])
                 printf("0x%x 0x%x\n", vadr[len/sizeof(int)-2], vadr[len/sizeof(int)-1]);
         }
 
+        printf("Try to mmap kadr\n");
+
         kadr = mmap(0, len, PROT_READ|PROT_WRITE, MAP_SHARED| MAP_LOCKED, fd, len);
 
-        if (kadr == MAP_FAILED)
+        printf("Mmaped fd\n");
+
+        if (kadr)
         {
                 perror("mmap");
                 exit(-1);
         }
+
+        printf("Try to read fd\n");
 
         if ((kadr[0] != 0xdead0000) || (kadr[1] != 0xbeef0000)
             || (kadr[len / sizeof(int) - 2] != (0xdead0000 + len / sizeof(int) - 2))
@@ -84,6 +86,8 @@ int main(int argc, char *argv[])
                 printf("0x%x 0x%x\n", kadr[0], kadr[1]);
                 printf("0x%x 0x%x\n", kadr[len / sizeof(int) - 2], kadr[len / sizeof(int) - 1]);
         }
+
+        printf("Done, close fd\n");
 
         close(fd);
         return(0);
