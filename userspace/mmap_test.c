@@ -7,8 +7,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdint.h>
 
-#define NPAGES 8
+#define NPAGES 16
 #define NODE_PATH "dev/mmap"
 
 /* this is a test program that opens the mmap_drv.
@@ -30,10 +31,13 @@ int main(int argc, char *argv[])
 {
         int fd;
         bool fault = false;
-        unsigned int *vadr;
+        uint32_t *vadr;
         unsigned int *kadr;
 
-        int len = NPAGES * getpagesize();
+        int page_size = getpagesize();
+        int len = NPAGES * page_size;
+
+        printf("PAGE_SIZE: %d\n", page_size);
 
         if (argc == 2 && strcmp(argv[1], "-f") == 0) {
                 fault = true;
@@ -57,9 +61,13 @@ int main(int argc, char *argv[])
 
         printf("Mmaped fd\n");
 
-        if ((vadr[0] != 0xaffe0000) || (vadr[1] != 0xbeef0000)
-            || (vadr[len/sizeof(int) - 2] != (0xaffe0000 + len/sizeof(int) - 2))
-            || (vadr[len/sizeof(int) - 1] != (0xbeef0000 + len/sizeof(int) - 2)))
+        for (int i = 250; i < 1100; i++) {
+                printf("i = %d, data = %d\n", i, vadr[i]);
+        }
+
+        if ((vadr[0] != 0) || (vadr[1] != 1)
+            || (vadr[len/sizeof(int) - 2] != len/sizeof(int) - 2)
+            || (vadr[len/sizeof(int) - 1] != len/sizeof(int) - 2))
         {
                 printf("0x%x 0x%x\n", vadr[0], vadr[1]);
                 printf("0x%x 0x%x\n", vadr[len/sizeof(int)-2], vadr[len/sizeof(int)-1]);

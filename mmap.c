@@ -50,11 +50,9 @@ static struct vm_operations_struct vm_ops =
 // length of the two memory areas
 #define NPAGES 16
 // pointer to the vmalloc'd area - always page aligned
-static int *vmalloc_area;
-static int vmalloc_page_used = 0;
+static u32 *vmalloc_area;
 // pointer to the kmalloc'd area, rounded up to a page boundary
 static int *kmalloc_area;
-static int kmalloc_page_used = 0;
 // original pointer for kmalloc'd area as returned by kmalloc
 static void *kmalloc_ptr;
 
@@ -74,9 +72,6 @@ static int mmap_release(struct inode *inode, struct file *filp)
 static void vm_open(struct vm_area_struct *vma)
 {
         pr_info("++%s\n", __func__);
-
-        vmalloc_page_used = 0;
-        kmalloc_page_used = 0;
 }
 
 static void vm_close(struct vm_area_struct *vma)
@@ -90,6 +85,7 @@ static vm_fault_t vm_fault(struct vm_fault *vmf)
         struct page *page;
 
         pr_info("++%s\n", __func__);
+        pr_info("pgoff: %d\n", vmf->pgoff);
 
         if (vmf == NULL) {
                 pr_err("vms is NULL\n");
@@ -98,16 +94,10 @@ static vm_fault_t vm_fault(struct vm_fault *vmf)
 
         pr_info("vma->vm_pgoff: %d\n", vma->vm_pgoff);
 
-        if (vma->vm_pgoff == 0) {
-                pr_info("vmalloc_page_used: %d\n", vmalloc_page_used);
-                page = vmalloc_to_page(vmalloc_area + PAGE_SIZE * vmalloc_page_used);
-                if (++vmalloc_page_used >= NPAGES)
-                        vmalloc_page_used = 0;
+        if (vmf->pgoff < NPAGES) {
+                page = vmalloc_to_page((char *)vmalloc_area + PAGE_SIZE * vmf->pgoff);
         } else {
-                pr_info("kmalloc_page_used: %d\n", kmalloc_page_used);
-                page = virt_to_page(kmalloc_area + PAGE_SIZE * kmalloc_page_used);
-                if (++kmalloc_page_used >= NPAGES)
-                        kmalloc_page_used = 0;
+                page = virt_to_page((char *)kmalloc_area + PAGE_SIZE * (vmf->pgoff - NPAGES));
         }
         get_page(page);
         vmf->page = page;
@@ -151,6 +141,9 @@ static int __init mymmap_init(void)
         /* round it up to the page bondary */
         kmalloc_area = (int *)((((unsigned long)kmalloc_ptr) + PAGE_SIZE - 1) & PAGE_MASK);
 
+        pr_info("kmalloc_ptr: %p\n", kmalloc_ptr);
+        pr_info("kmalloc_area: %p\n", kmalloc_area);
+
         /* allocate a memory area with vmalloc. */
         if ((vmalloc_area = (int *)vmalloc(NPAGES * PAGE_SIZE)) == NULL) {
                 ret = -ENOMEM;
@@ -170,9 +163,8 @@ static int __init mymmap_init(void)
         }
 
         /* store a pattern in the memory - the test application will check for it */
-        for (i = 0; i < (NPAGES * PAGE_SIZE / sizeof(int)); i += 2) {
-                vmalloc_area[i] = (0xaffe << 16) + i;
-                vmalloc_area[i + 1] = (0xbeef << 16) + i;
+        for (i = 0; i < (NPAGES * PAGE_SIZE / sizeof(int)); i++) {
+                vmalloc_area[i] = i;
                 kmalloc_area[i] = (0xdead << 16) + i;
                 kmalloc_area[i + 1] = (0xbeef << 16) + i;
         }
